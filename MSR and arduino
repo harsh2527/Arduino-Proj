@@ -1,0 +1,65 @@
+#include <SoftwareSerial.h> // import the software serial library
+
+// define pins for software serial communication
+SoftwareSerial mySerial(2, 3); // RX, TX
+
+void setup() {
+  // initialize serial communication at 9600 bits per second
+  Serial.begin(9600);
+
+  // initialize software serial communication at 9600 bits per second
+  mySerial.begin(9600);
+}
+
+void loop() {
+  // display menu options
+  Serial.println("Please select an option:");
+  Serial.println("1. Read data from magnetic stripe card");
+  Serial.println("2. Write data to magnetic stripe card");
+
+  while (!Serial.available()); // wait for user input
+
+  char choice = Serial.read(); // read user input
+
+  switch (choice) {
+    case '1': // read data
+      readData();
+      break;
+    case '2': // write data
+      writeData();
+      break;
+    default: // invalid choice
+      Serial.println("Invalid choice. Please try again.");
+      break;
+  }
+}
+
+void readData() {
+  // send read command to MSR
+  mySerial.write("%R1\r\n");
+
+  // wait for response from MSR
+  while (!mySerial.available());
+
+  // read and display data from MSR
+  String data = mySerial.readStringUntil('\r');
+  Serial.println("Data read from magnetic stripe card: " + data);
+}
+
+void writeData() {
+  Serial.println("Please enter data to write to magnetic stripe card:");
+
+  while (!Serial.available()); // wait for user input
+
+  String data = Serial.readStringUntil('\n'); // read user input
+
+  // send write command and data to MSR
+  mySerial.write("%M" + data + "\r\n");
+
+  // wait for response from MSR
+  while (!mySerial.available());
+
+  // read and display response from MSR
+  String response = mySerial.readStringUntil('\r');
+  Serial.println("Response from magnetic stripe card writer: " + response);
+}
