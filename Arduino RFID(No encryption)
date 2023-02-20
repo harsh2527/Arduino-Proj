@@ -1,0 +1,66 @@
+#include <SPI.h>
+#include <MFRC522.h>
+
+#define SS_PIN 10
+#define RST_PIN 9
+
+MFRC522 mfrc522(SS_PIN, RST_PIN);
+
+void setup() {
+  Serial.begin(9600);  
+  SPI.begin();          
+  mfrc522.PCD_Init();   
+  Serial.println("Scan your RFID card to write UID and data.");
+}
+
+void loop() {
+  // Look for new cards
+  if ( ! mfrc522.PICC_IsNewCardPresent() || ! mfrc522.PICC_ReadCardSerial() ) {
+    delay(50);
+    return;
+  }
+
+  // Print UID
+  Serial.print("UID tag :");
+  String content= "";
+  byte letter;
+  for (byte i = 0; i < mfrc522.uid.size; i++) {
+     Serial.print(mfrc522.uid.uidByte[i] < 0x10 ? "0" : "");
+     Serial.print(mfrc522.uid.uidByte[i], HEX);
+     content.concat(String(mfrc522.uid.uidByte[i] < 0x10 ? "0" : ""));
+     content.concat(String(mfrc522.uid.uidByte[i], HEX));
+  }
+  Serial.println();
+  
+  // Input data
+  Serial.println("Enter data to write on card:");
+  while (Serial.available()) {
+    delay(1);
+    char c = Serial.read();
+    content.concat(c);
+  }
+  Serial.println();
+
+  // Write data to card
+  Serial.print("Writing data to card...");
+  MFRC522::StatusCode status;
+  byte buffer[18];
+  byte bufferSize = sizeof(buffer);
+  content.getBytes(buffer, bufferSize);
+  status = mfrc522.MIFARE_Write(4, buffer, 16);
+  if (status != MFRC522::STATUS_OK) {
+    Serial.print("Write failed: ");
+    Serial.println(mfrc522.GetStatusCodeName(status));
+    return;
+  }
+  Serial.println("Write success.");
+
+  // Print success message
+  Serial.println("This program has been made by Harsh Malhotra");
+  Serial.println();
+
+  // Halt PICC
+  mfrc522.PICC_HaltA();
+  // Stop encryption on PCD
+  mfrc522.PCD_StopCrypto1();
+}
