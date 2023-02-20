@@ -1,0 +1,65 @@
+#include <MFRC522.h>
+#include <AES.h>
+
+// Define the pins used by the RFID module
+#define SS_PIN 10
+#define RST_PIN 9
+
+// Define the key for AES encryption
+byte key[] = { 0x54, 0x68, 0x69, 0x73, 0x49, 0x73, 0x41, 0x45, 0x53, 0x4b, 0x65, 0x79, 0x46, 0x6f, 0x72, 0x41 };
+
+// Create an object for the RFID module
+MFRC522 rfid(SS_PIN, RST_PIN);
+
+void setup() {
+  // Initialize the serial communication
+  Serial.begin(9600);
+  
+  // Initialize the RFID module
+  rfid.PCD_Init();
+
+  // Display a message on the serial monitor
+  Serial.println("Ready to read and write data on RFID card");
+}
+
+void loop() {
+  // Wait for a RFID card to be present
+  if (rfid.PICC_IsNewCardPresent() && rfid.PICC_ReadCardSerial()) {
+    // Get the UID of the RFID card
+    String uid = "";
+    for (byte i = 0; i < rfid.uid.size; i++) {
+      uid += String(rfid.uid.uidByte[i] < 0x10 ? "0" : "");
+      uid += String(rfid.uid.uidByte[i], HEX);
+    }
+
+    // Display the UID on the serial monitor
+    Serial.print("UID: ");
+    Serial.println(uid);
+
+    // Wait for the user to input the data to be written on the RFID card
+    Serial.println("Please enter the data to be written on the RFID card:");
+    while (!Serial.available());
+    String data = Serial.readStringUntil('\n');
+    
+    // Encrypt the data using AES
+    byte encrypted[data.length()];
+    AES aes;
+    aes.do_aes_encrypt((byte*)data.c_str(), data.length(), key, 128, encrypted);
+
+    // Write the encrypted data to the RFID card
+    MFRC522::StatusCode status;
+    status = (MFRC522::StatusCode)rfid.MIFARE_Write(1, encrypted, sizeof(encrypted));
+    if (status == MFRC522::STATUS_OK) {
+      Serial.println("Data written on RFID card successfully");
+
+      // Display the author's name after each successful transaction
+      Serial.println("This program has been made by Harsh Malhotra");
+    } else {
+      Serial.println("Failed to write data on RFID card");
+    }
+
+    // Halt the RFID module until a new card is present
+    rfid.PICC_HaltA();
+    rfid.PCD_StopCrypto1();
+  }
+}
